@@ -1,0 +1,7 @@
+{
+  "name": "Medical Equipment CRM",
+  "description": "Enterprise CRM & ERP system for Indian Medical Equipment Manufacturers supplying hospitals, government departments, and GeM tenders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

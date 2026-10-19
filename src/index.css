@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+  }
+}
+
+/* Universal Print Stylesheet */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+
+  /* Reset layout constraints and background */
+  html, body, #root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 9.5pt !important;
+    line-height: 1.3 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation, mobile backdrop, sidebars, headers, action buttons, pagination */
+  aside,
+  header,
+  nav,
+  .no-print,
+  button:not(.allow-print),
+  input,
+  select,
+  .pagination-container,
+  .search-container {
+    display: none !important;
+  }
+
+  /* Expand container to full page width */
+  main,
+  .main-content,
+  .max-w-7xl,
+  .overflow-hidden,
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Universal high-contrast print table styling */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+    font-size: 8.5pt !important;
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    text-transform: uppercase !important;
+    font-size: 8pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px 8px !important;
+    color: #1e293b !important;
+    vertical-align: top !important;
+  }
+
+  /* Hide actions column when printing */
+  th:last-child,
+  td:last-child {
+    display: none !important;
+  }
+
+  /* Badge styling in print */
+  span[class*="rounded"] {
+    border: 1px solid #cbd5e1 !important;
+    padding: 1px 4px !important;
+    font-size: 7.5pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Universal print header banner */
+  .print-header-banner {
+    display: block !important;
+    border-bottom: 2px solid #0f172a !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Universal print footer */
+  .print-footer-banner {
+    display: block !important;
+    border-top: 1px solid #cbd5e1 !important;
+    margin-top: 16px !important;
+    padding-top: 6px !important;
+    font-size: 7.5pt !important;
+    color: #64748b !important;
+  }
+}
