@@ -18,67 +18,56 @@ import { DispatchBilling } from './components/dispatch/DispatchBilling';
 import { AfterSalesService } from './components/service/AfterSalesService';
 import { SettingsAndConfig } from './components/settings/SettingsAndConfig';
 
+import { UserRole } from './types/crm';
+
+const getDefaultTabForRole = (role: UserRole): ActiveTab => {
+  switch (role) {
+    case 'Admin':
+      return 'dashboard';
+    case 'Sales':
+      return 'leads';
+    case 'Tender Manager':
+      return 'tenders';
+    case 'Inventory Manager':
+      return 'inventory';
+    case 'Accounts':
+      return 'dispatch';
+    case 'HR':
+      return 'hr';
+    case 'Service':
+      return 'service';
+    default:
+      return 'leads';
+  }
+};
+
 function MainAppLayout() {
   const { currentUser, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const prevRoleRef = React.useRef<string | null>(null);
 
-  // Set default permitted active tab whenever role changes or guard against unauthorized module access
+  // Sync default tab ONLY when role changes (login or role switch)
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role !== 'Admin' && (!hasPermission(activeTab, 'view') || activeTab === 'dashboard')) {
-        switch (currentUser.role) {
-          case 'Sales':
-            setActiveTab('leads');
-            break;
-          case 'Tender Manager':
-            setActiveTab('tenders');
-            break;
-          case 'Inventory Manager':
-            setActiveTab('inventory');
-            break;
-          case 'Accounts':
-            setActiveTab('dispatch');
-            break;
-          case 'HR':
-            setActiveTab('hr');
-            break;
-          case 'Service':
-            setActiveTab('service');
-            break;
-          default:
-            setActiveTab('leads');
-        }
-        return;
-      }
+    if (!currentUser) {
+      prevRoleRef.current = null;
+      return;
+    }
 
-      switch (currentUser.role) {
-        case 'Admin':
-          setActiveTab('dashboard');
-          break;
-        case 'Sales':
-          setActiveTab('leads');
-          break;
-        case 'Tender Manager':
-          setActiveTab('tenders');
-          break;
-        case 'Inventory Manager':
-          setActiveTab('inventory');
-          break;
-        case 'Accounts':
-          setActiveTab('dispatch');
-          break;
-        case 'HR':
-          setActiveTab('hr');
-          break;
-        case 'Service':
-          setActiveTab('service');
-          break;
-        default:
-          setActiveTab('leads');
+    // When role changes (e.g. login or role switch), set initial default tab for that role
+    if (prevRoleRef.current !== currentUser.role) {
+      prevRoleRef.current = currentUser.role;
+      setActiveTab(getDefaultTabForRole(currentUser.role));
+      return;
+    }
+
+    // Role has not changed. Guard against non-admin accessing unauthorized tab or Admin Dashboard
+    if (currentUser.role !== 'Admin') {
+      if (activeTab === 'dashboard' || !hasPermission(activeTab, 'view')) {
+        setActiveTab(getDefaultTabForRole(currentUser.role));
       }
     }
-  }, [currentUser?.role, activeTab]);
+  }, [currentUser?.role, activeTab, hasPermission]);
 
   // If not logged in, show dedicated multi-role login portal
   if (!currentUser) {

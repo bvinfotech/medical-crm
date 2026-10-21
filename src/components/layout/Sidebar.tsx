@@ -46,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   setIsMobileOpen,
 }) => {
-  const { currentUser, hasPermission, logout } = useAuth();
+  const { currentUser, hasPermission, logout, returnToAdmin, originalRole } = useAuth();
   const { systemConfig } = useSystem();
 
   const menuSections = [
@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'service' as ActiveTab, label: 'After-Sales Service', icon: Wrench, module: 'service' },
         { id: 'hr' as ActiveTab, label: 'HR & Payroll', icon: UserCheck, module: 'hr' },
-        { id: 'settings' as ActiveTab, label: 'Database & Settings', icon: Database, module: 'settings' },
+        { id: 'settings' as ActiveTab, label: 'Admin Profile Settings', icon: Database, module: 'settings' },
       ],
     },
   ];
@@ -210,6 +210,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           </div>
+
+          {/* When Admin is testing another role, show direct Return to Admin button */}
+          {originalRole === 'Admin' && currentUser?.role !== 'Admin' && (
+            <button
+              type="button"
+              onClick={returnToAdmin}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-amber-500/80 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 text-xs font-semibold transition cursor-pointer shadow-xs"
+              title="Return to Admin Role (Ankit Gupta)"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+              <span>Back to Admin Role</span>
+            </button>
+          )}
 
           <button
             type="button"

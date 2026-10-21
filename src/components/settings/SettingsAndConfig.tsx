@@ -393,17 +393,20 @@ export const SettingsAndConfig: React.FC = () => {
           <span>👤 Admin Profile & Name Settings</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
-            activeTab === 'database'
-              ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-          }`}
-        >
-          <Cloud className="h-4 w-4" />
-          <span>☁️ Database & Cloud Sync</span>
-        </button>
+        {/* Temporarily hidden: Database & Cloud Sync tab. Remove the `false &&` to restore. */}
+        {false && (
+          <button
+            onClick={() => setActiveTab('database')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
+              activeTab === 'database'
+                ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+            }`}
+          >
+            <Cloud className="h-4 w-4" />
+            <span>☁️ Database & Cloud Sync</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: SYSTEM NAME & BRANDING */}

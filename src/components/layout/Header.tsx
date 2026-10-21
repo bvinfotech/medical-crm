@@ -3,7 +3,6 @@ import {
   Menu, 
   Bell, 
   User, 
-  Database, 
   LogOut, 
   Check, 
   ShieldAlert, 
@@ -20,7 +19,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useSystem } from '../../context/SystemContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { UserRole } from '../../types/crm';
-import { getStoredFirebaseConfig } from '../../services/firebaseClient';
 import { ActiveTab } from './Sidebar';
 import { Modal } from '../common/Modal';
 
@@ -30,7 +28,19 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTab }) => {
-  const { currentUser, adminProfile, switchRole, logout, allRoles, updateProfile, updateAdminProfile, hasPermission } = useAuth();
+  const { 
+    currentUser, 
+    adminProfile, 
+    switchRole, 
+    returnToAdmin, 
+    canSwitchRole, 
+    originalRole, 
+    logout, 
+    allRoles, 
+    updateProfile, 
+    updateAdminProfile, 
+    hasPermission 
+  } = useAuth();
   const { systemConfig, updateSystemConfig } = useSystem();
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
 
@@ -73,7 +83,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
   const notifRef = useRef<HTMLDivElement>(null);
   const roleRef = useRef<HTMLDivElement>(null);
 
-  const hasFirebase = !!getStoredFirebaseConfig();
 
   // Sync state whenever modal opens or values change
   useEffect(() => {
@@ -229,48 +238,93 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
             </div>
           )}
 
-          {/* Role Display / Switcher - Only Admin can test switch roles */}
-          {currentUser?.role === 'Admin' ? (
-            <div className="relative" ref={roleRef}>
-              <button
-                onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition shadow-2xs cursor-pointer"
-                title="Switch role to test different RBAC permissions"
-              >
-                <span className="text-slate-400 font-normal hidden md:inline">Role:</span>
-                <span className="font-bold text-blue-700">{currentUser?.role}</span>
-                <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] text-blue-800 font-semibold">
-                  Switch
-                </span>
-              </button>
-
-              {showRoleMenu && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                    Test Role-Based Access (RBAC)
-                  </div>
-                  {allRoles.map((role) => {
-                    const isSelected = currentUser?.role === role;
-                    return (
-                      <button
-                        key={role}
-                        onClick={() => {
-                          switchRole(role);
-                          setShowRoleMenu(false);
-                        }}
-                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-50 text-blue-700 font-bold'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span>{role}</span>
-                        {isSelected && <Check className="h-3.5 w-3.5 text-blue-600" />}
-                      </button>
-                    );
-                  })}
-                </div>
+          {/* Role Display / Switcher - Available for Admin and when testing other roles */}
+          {canSwitchRole ? (
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* If Admin is currently previewing/testing another role, show direct Return to Admin button */}
+              {currentUser?.role !== 'Admin' && (
+                <button
+                  type="button"
+                  onClick={returnToAdmin}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white px-2 sm:px-2.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer animate-pulse"
+                  title="Switch back to Admin (Ankit Gupta)"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span className="hidden xs:inline">Back to</span>
+                  <span>Admin</span>
+                </button>
               )}
+
+              <div className="relative" ref={roleRef}>
+                <button
+                  onClick={() => setShowRoleMenu(!showRoleMenu)}
+                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition shadow-2xs cursor-pointer ${
+                    currentUser?.role !== 'Admin'
+                      ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title="Switch role to test different RBAC permissions"
+                >
+                  <span className="text-slate-400 font-normal hidden md:inline">Role:</span>
+                  <span className={`font-bold ${currentUser?.role !== 'Admin' ? 'text-amber-800' : 'text-blue-700'}`}>
+                    {currentUser?.role}
+                  </span>
+                  <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
+                    currentUser?.role !== 'Admin'
+                      ? 'bg-amber-200 text-amber-900'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    Switch
+                  </span>
+                </button>
+
+                {showRoleMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                      Test Role-Based Access (RBAC)
+                    </div>
+                    {allRoles.map((role) => {
+                      const isSelected = currentUser?.role === role;
+                      return (
+                        <button
+                          key={role}
+                          onClick={() => {
+                            switchRole(role);
+                            setShowRoleMenu(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 text-blue-700 font-bold'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {role === 'Admin' && <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />}
+                            <span>{role}</span>
+                          </div>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-blue-600" />}
+                        </button>
+                      );
+                    })}
+
+                    {currentUser?.role !== 'Admin' && (
+                      <div className="border-t border-slate-100 pt-1 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            returnToAdmin();
+                            setShowRoleMenu(false);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 transition cursor-pointer"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                          <span>Return to Admin Profile</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div 
@@ -281,24 +335,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
               <span className="font-bold text-blue-700">{currentUser?.role}</span>
             </div>
           )}
-
-          {/* Cloud Database Indicator */}
-          <div 
-            onClick={() => {
-              if (currentUser?.role === 'Admin') {
-                setActiveTab('settings');
-              }
-            }}
-            className={`hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 ${
-              currentUser?.role === 'Admin' ? 'cursor-pointer hover:bg-slate-100 transition' : 'cursor-default'
-            }`}
-            title={hasFirebase ? 'Cloud Firestore connected' : 'Transactional IndexedDB active'}
-          >
-            <Database className={`h-3.5 w-3.5 ${hasFirebase ? 'text-blue-600 animate-pulse' : 'text-emerald-600'}`} />
-            <span className="text-[11px] font-semibold text-slate-700">
-              {hasFirebase ? 'Firestore Sync' : 'IndexedDB'}
-            </span>
-          </div>
 
           {/* Notifications Dropdown */}
           <div className="relative" ref={notifRef}>

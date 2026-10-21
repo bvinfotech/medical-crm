@@ -316,6 +316,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
 
+  const [originalRole, setOriginalRole] = useState<UserRole | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('bmt_original_role') || localStorage.getItem('bmt_original_role');
+      if (stored) return stored as UserRole;
+      const userStored = sessionStorage.getItem('bmt_active_user') || localStorage.getItem('bmt_active_user_persistent');
+      if (userStored) {
+        const parsed = JSON.parse(userStored);
+        return parsed.role as UserRole;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem('bmt_user_profiles_v1', JSON.stringify(userProfiles));
@@ -395,8 +410,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setCurrentUser(updatedUser);
-    sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
-    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+    setOriginalRole(role);
+    try {
+      sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('bmt_original_role', role);
+      localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+      localStorage.setItem('bmt_original_role', role);
+    } catch (e) {
+      console.error(e);
+    }
 
     return { success: true };
   };
@@ -488,23 +510,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setCurrentUser(updatedUser);
-    sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
-    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+    setOriginalRole(detectedRole);
+    try {
+      sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('bmt_original_role', detectedRole);
+      localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+      localStorage.setItem('bmt_original_role', detectedRole);
+    } catch (e) {
+      console.error(e);
+    }
     return { success: true, role: detectedRole };
   };
 
   const logout = () => {
     setCurrentUser(null);
-    sessionStorage.removeItem('bmt_active_user');
-    localStorage.removeItem('bmt_active_user_persistent');
+    setOriginalRole(null);
+    try {
+      sessionStorage.removeItem('bmt_active_user');
+      sessionStorage.removeItem('bmt_original_role');
+      localStorage.removeItem('bmt_active_user_persistent');
+      localStorage.removeItem('bmt_original_role');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const switchRole = (newRole: UserRole) => {
+    // If user is currently Admin OR originally logged in as Admin, maintain originalRole as Admin
+    if (currentUser?.role === 'Admin' || originalRole === 'Admin') {
+      setOriginalRole('Admin');
+      try {
+        sessionStorage.setItem('bmt_original_role', 'Admin');
+        localStorage.setItem('bmt_original_role', 'Admin');
+      } catch (e) {
+        console.error(e);
+      }
+    }
     const targetUser = userProfiles[newRole] || DEFAULT_USERS[newRole];
     setCurrentUser(targetUser);
-    sessionStorage.setItem('bmt_active_user', JSON.stringify(targetUser));
-    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(targetUser));
+    try {
+      sessionStorage.setItem('bmt_active_user', JSON.stringify(targetUser));
+      localStorage.setItem('bmt_active_user_persistent', JSON.stringify(targetUser));
+    } catch (e) {
+      console.error(e);
+    }
   };
+
+  const returnToAdmin = () => {
+    const adminUser = userProfiles.Admin || DEFAULT_USERS.Admin;
+    setCurrentUser(adminUser);
+    setOriginalRole('Admin');
+    try {
+      sessionStorage.setItem('bmt_active_user', JSON.stringify(adminUser));
+      sessionStorage.setItem('bmt_original_role', 'Admin');
+      localStorage.setItem('bmt_active_user_persistent', JSON.stringify(adminUser));
+      localStorage.setItem('bmt_original_role', 'Admin');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const canSwitchRole = currentUser?.role === 'Admin' || originalRole === 'Admin';
 
   const updateProfile = (updated: Partial<UserProfile>) => {
     if (currentUser) {
@@ -575,6 +641,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithCredentials,
         logout,
         switchRole,
+        returnToAdmin,
+        canSwitchRole,
+        originalRole,
         updateProfile,
         updateAdminProfile,
         resetAdminProfile,
