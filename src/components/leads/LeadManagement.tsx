@@ -182,7 +182,7 @@ export const LeadManagement: React.FC = () => {
               Hospital Leads & Institutional Inquiries
             </h2>
             <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full border border-blue-200">
-              હોસ્પિટલ ઇન્ક્વાયરી પાઇપલાઇન (Direct Hospital Orders)
+              Direct Hospital Pipeline
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">

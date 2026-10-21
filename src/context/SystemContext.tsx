@@ -19,10 +19,10 @@ export interface SystemConfig {
 }
 
 export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
-  systemName: 'Bharat MedTech',
-  systemShortName: 'BM',
+  systemName: 'RGMPL',
+  systemShortName: 'RGMPL',
   systemTagline: 'Medical Equipment ERP & CRM',
-  companyName: 'Bharat MedTech Instruments Ltd.',
+  companyName: 'RGMPL Instruments Ltd.',
   plantLocation: 'Plant: Manesar, Gurugram',
   cdscoReg: 'CDSCO Reg: MFG/MD/2022/000492',
   isoCert: 'ISO 13485:2016 Certified',
@@ -31,9 +31,9 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   city: 'Gurugram',
   state: 'Haryana',
   pincode: '122050',
-  contactEmail: 'contact@bharatmedtech.in',
+  contactEmail: 'contact@rgmpl.in',
   contactPhone: '+91 124 4567890',
-  website: 'www.bharatmedtech.in',
+  website: 'www.rgmpl.in',
 };
 
 const SYSTEM_STORAGE_KEY = 'bmt_system_configuration';
@@ -51,7 +51,15 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const stored = localStorage.getItem(SYSTEM_STORAGE_KEY) || localStorage.getItem('bmt_system_config');
       if (stored) {
-        return { ...DEFAULT_SYSTEM_CONFIG, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored);
+        if (!parsed.systemName || parsed.systemName === 'Bharat MedTech') {
+          parsed.systemName = 'RGMPL';
+          parsed.systemShortName = 'RGMPL';
+          if (!parsed.companyName || parsed.companyName === 'Bharat MedTech Instruments Ltd.') {
+            parsed.companyName = 'RGMPL Instruments Ltd.';
+          }
+        }
+        return { ...DEFAULT_SYSTEM_CONFIG, ...parsed };
       }
     } catch (e) {
       console.error('Failed to load system config from storage', e);
@@ -64,6 +72,16 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       localStorage.setItem(SYSTEM_STORAGE_KEY, JSON.stringify(systemConfig));
       localStorage.setItem('bmt_system_config', JSON.stringify(systemConfig));
       document.title = `${systemConfig.systemName} - ${systemConfig.systemTagline}`;
+      
+      // Keep meta description and og tags synchronized
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', `${systemConfig.companyName} - ${systemConfig.systemTagline}`);
+      }
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) {
+        ogTitle.setAttribute('content', `${systemConfig.systemName} - ${systemConfig.systemTagline}`);
+      }
     } catch (e) {
       console.error('Failed to persist system config', e);
     }
@@ -97,20 +115,32 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSystemConfig((prev) => {
       let shortName = updated.systemShortName !== undefined ? updated.systemShortName : prev.systemShortName;
       if (updated.systemName && updated.systemShortName === undefined) {
-        const words = updated.systemName.trim().split(/\s+/);
+        const words = updated.systemName.trim().split(/\s+/).filter(Boolean);
         shortName = words.length >= 2 
           ? (words[0][0] + words[1][0]).toUpperCase() 
           : updated.systemName.slice(0, 4).toUpperCase();
       }
 
+      // Automatically sync companyName if it was default or linked to previous systemName
+      let newCompanyName = updated.companyName !== undefined ? updated.companyName : prev.companyName;
+      if (
+        updated.systemName &&
+        (updated.companyName === undefined || updated.companyName === DEFAULT_SYSTEM_CONFIG.companyName) &&
+        (prev.companyName === DEFAULT_SYSTEM_CONFIG.companyName || !prev.companyName || prev.companyName.includes('Bharat MedTech') || prev.companyName === `${prev.systemName} Instruments Ltd.`)
+      ) {
+        newCompanyName = `${updated.systemName.trim()} Instruments Ltd.`;
+      }
+
       const merged: SystemConfig = {
         ...prev,
         ...updated,
+        companyName: newCompanyName,
         systemShortName: shortName || prev.systemShortName,
       };
 
       try {
         localStorage.setItem(SYSTEM_STORAGE_KEY, JSON.stringify(merged));
+        localStorage.setItem('bmt_system_config', JSON.stringify(merged));
         document.title = `${merged.systemName} - ${merged.systemTagline}`;
         window.dispatchEvent(new CustomEvent('bmt_system_config_updated', { detail: merged }));
       } catch (err) {

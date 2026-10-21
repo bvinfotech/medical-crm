@@ -13,7 +13,8 @@ import {
   Settings, 
   FileCheck2,
   ChevronRight,
-  Database
+  Database,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSystem } from '../../context/SystemContext';
@@ -45,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   setIsMobileOpen,
 }) => {
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser, hasPermission, logout } = useAuth();
   const { systemConfig } = useSystem();
 
   const menuSections = [
@@ -105,10 +106,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand Header */}
-        <button
-          onClick={() => handleSelect('settings')}
-          className="flex h-16 shrink-0 w-full text-left items-center gap-3 border-b border-slate-800 px-6 bg-slate-950/40 hover:bg-slate-800/40 transition group cursor-pointer"
-          title="Click to view & edit System Name and Settings"
+        <div
+          onClick={() => {
+            if (currentUser?.role === 'Admin' && hasPermission('settings', 'view')) {
+              handleSelect('settings');
+            }
+          }}
+          className={`flex h-16 shrink-0 w-full text-left items-center gap-3 border-b border-slate-800 px-6 bg-slate-950/40 ${
+            currentUser?.role === 'Admin' && hasPermission('settings', 'view')
+              ? 'hover:bg-slate-800/40 transition group cursor-pointer'
+              : 'cursor-default'
+          }`}
+          title={currentUser?.role === 'Admin' ? "Click to view & edit System Name and Settings" : systemConfig.systemName}
         >
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-black shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform ${
             (systemConfig.systemShortName || '').length <= 2 
@@ -117,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ? 'text-xs tracking-tight' 
                 : 'text-[10px] tracking-tighter'
           }`}>
-            {systemConfig.systemShortName || 'BM'}
+            {systemConfig.systemShortName || 'RGMPL'}
           </div>
           <div className="overflow-hidden flex-1">
             <h1 className="text-sm font-bold text-white tracking-tight truncate group-hover:text-blue-300 transition-colors">
@@ -127,12 +136,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {systemConfig.systemTagline}
             </p>
           </div>
-        </button>
+        </div>
 
         {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
           {menuSections.map((section) => {
-            const visibleItems = section.items.filter((item) => hasPermission(item.module, 'view'));
+            const visibleItems = section.items.filter((item) => {
+              if (item.id === 'dashboard' && currentUser?.role !== 'Admin') {
+                return false;
+              }
+              return hasPermission(item.module, 'view');
+            });
             if (visibleItems.length === 0) return null;
 
             return (
@@ -168,28 +182,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        {/* User Card in Bottom of Sidebar */}
-        <button
-          onClick={() => handleSelect('settings')}
-          className="w-full text-left border-t border-slate-800 p-4 bg-slate-950/30 hover:bg-slate-800/50 transition flex items-center justify-between group cursor-pointer"
-          title="Click to edit Admin Profile & Name (એડમિનનું નામ બદલો)"
-        >
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-bold text-white shadow-xs group-hover:scale-105 transition">
-              {currentUser?.name.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-xs font-semibold text-white truncate group-hover:text-blue-300 transition">{currentUser?.name}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                <p className="text-[11px] text-slate-400 truncate">{currentUser?.role}</p>
+        {/* User Card & Logout in Bottom of Sidebar */}
+        <div className="border-t border-slate-800 p-3 bg-slate-950/40 space-y-2">
+          <div
+            onClick={() => {
+              if (currentUser?.role === 'Admin' && hasPermission('settings', 'view')) {
+                handleSelect('settings');
+              }
+            }}
+            className={`w-full text-left p-2 rounded-lg transition flex items-center justify-between group ${
+              currentUser?.role === 'Admin' && hasPermission('settings', 'view')
+                ? 'hover:bg-slate-800/60 cursor-pointer'
+                : 'cursor-default'
+            }`}
+            title={currentUser?.role === 'Admin' ? "Click to view System Settings" : `${currentUser?.name} (${currentUser?.role})`}
+          >
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-bold text-white shadow-xs group-hover:scale-105 transition">
+                {currentUser?.name.charAt(0) || 'U'}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-xs font-semibold text-white truncate group-hover:text-blue-300 transition">{currentUser?.name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                  <p className="text-[10px] text-slate-400 truncate">{currentUser?.role}</p>
+                </div>
               </div>
             </div>
           </div>
-          <span className="text-[10px] text-slate-500 group-hover:text-blue-300 font-bold px-1.5 py-0.5 rounded bg-slate-800 group-hover:bg-blue-950/80 transition">
-            Edit
-          </span>
-        </button>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 hover:bg-rose-950/40 hover:border-rose-800 text-slate-400 hover:text-rose-300 text-xs font-semibold transition cursor-pointer"
+            title="Log out and switch role portal"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Switch Role Portal / Logout</span>
+          </button>
+        </div>
       </aside>
     </>
   );

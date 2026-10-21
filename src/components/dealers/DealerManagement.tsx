@@ -152,7 +152,7 @@ export const DealerManagement: React.FC = () => {
               Authorized Channel Dealer Network
             </h2>
             <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full border border-indigo-200">
-              પ્રાદેશિક વિતરક નેટવર્ક (Regional B2B Distributors)
+              Regional B2B Distributors
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">

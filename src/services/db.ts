@@ -267,7 +267,7 @@ export async function resetDatabaseToSeed(): Promise<void> {
 }
 
 // Full Database Export to JSON
-export async function exportFullDatabase(): Promise<string> {
+export async function exportFullDatabase(customInfo?: { systemName?: string; companyName?: string }): Promise<string> {
   const db = await openDatabase();
   const data: Record<string, any[]> = {};
 
@@ -277,8 +277,8 @@ export async function exportFullDatabase(): Promise<string> {
 
   const exportPayload = {
     exportedAt: new Date().toISOString(),
-    system: 'Medical Equipment CRM & ERP',
-    company: 'Bharat MedTech Instruments Ltd.',
+    system: customInfo?.systemName || 'Medical Equipment CRM & ERP',
+    company: customInfo?.companyName || 'Medical Equipment Instruments Ltd.',
     version: '1.0',
     data
   };

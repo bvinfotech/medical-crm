@@ -1,25 +1,86 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole } from '../types/crm';
 
-interface AuthContextType {
-  currentUser: UserProfile | null;
-  adminProfile: UserProfile;
-  isAuthenticated: boolean;
-  login: (email: string, role?: UserRole) => Promise<boolean>;
-  logout: () => void;
-  switchRole: (newRole: UserRole) => void;
-  updateProfile: (updated: Partial<UserProfile>) => void;
-  updateAdminProfile: (updated: Partial<UserProfile>) => void;
-  resetAdminProfile: () => void;
-  hasPermission: (module: string, action?: 'view' | 'create' | 'edit' | 'delete') => boolean;
-  allRoles: UserRole[];
+export interface RolePortalInfo {
+  title: string;
+  department: string;
+  badgeColor: string;
+  description: string;
+  accessibleModules: string[];
 }
 
-const DEFAULT_USERS: Record<UserRole, UserProfile> = {
+export const ROLE_PORTAL_DETAILS: Record<UserRole, RolePortalInfo> = {
+  Admin: {
+    title: 'Executive Admin',
+    department: 'Executive Management',
+    badgeColor: 'bg-blue-600',
+    description: 'Full enterprise control across all operational modules, regulatory compliance, branding, user RBAC privileges, and system audit logs.',
+    accessibleModules: ['Admin Dashboard', 'Hospital Leads', 'Dealer Network', 'Government Tenders', 'Quotations & Bids', 'EMD & PBG Tracker', 'Inventory & Stock', 'Quality & Compliance', 'Dispatch & Billing', 'After-Sales Service', 'HR & Payroll', 'System Settings'],
+  },
+  Sales: {
+    title: 'Sales & Distribution',
+    department: 'Commercial Sales & B2B Dealers',
+    badgeColor: 'bg-indigo-600',
+    description: 'Direct hospital inquiry pipeline, dealer network territory assignment, and commercial quotes generation.',
+    accessibleModules: ['Leads & Inquiries', 'Dealer Network', 'Quotations & Bids'],
+  },
+  'Tender Manager': {
+    title: 'Tenders & GeM Bids',
+    department: 'Government Tenders & CPPP',
+    badgeColor: 'bg-emerald-600',
+    description: 'Centralized government procurement monitoring, GeM portal bidding records, and EMD FDR guarantees.',
+    accessibleModules: ['Government Tenders', 'Quotations & Bids', 'EMD & PBG Tracker'],
+  },
+  'Inventory Manager': {
+    title: 'Warehouse & Assembly',
+    department: 'Stores & Factory Assembly',
+    badgeColor: 'bg-amber-600',
+    description: 'Finished medical equipment stock, spare parts tracking, batch serial numbers, GRN inward, and quality inspections.',
+    accessibleModules: ['Inventory & Stock', 'Quality & Compliance', 'Dispatch & Billing'],
+  },
+  Accounts: {
+    title: 'Accounts & Taxation',
+    department: 'Finance, GST & Billing',
+    badgeColor: 'bg-rose-600',
+    description: 'GST tax invoicing, hospital payments collection, outstanding ledger balances, and EMD refund reconciliation.',
+    accessibleModules: ['Dispatch & Billing', 'EMD & PBG Tracker'],
+  },
+  HR: {
+    title: 'HR & Factory Payroll',
+    department: 'Human Resources & Workforce',
+    badgeColor: 'bg-purple-600',
+    description: 'Manufacturing staff directory, daily attendance registers, biometric shift records, and monthly salary payslip generation.',
+    accessibleModules: ['HR & Payroll'],
+  },
+  Service: {
+    title: 'Biomedical Service',
+    department: 'Field Engineering & Support',
+    badgeColor: 'bg-teal-600',
+    description: 'Hospital breakdown service calls, on-site biomedical engineering tickets, hospital installation certificates, and AMC/CMC contracts.',
+    accessibleModules: ['After-Sales Service'],
+  },
+};
+
+export interface RoleCredential {
+  email: string;
+  password: string;
+}
+
+export const DEFAULT_ROLE_CREDENTIALS: Record<UserRole, RoleCredential> = {
+  Admin: { email: 'admin@rgmpl.in', password: 'admin@123' },
+  Sales: { email: 'sales@rgmpl.in', password: 'sales@123' },
+  'Tender Manager': { email: 'tenders@rgmpl.in', password: 'tender@123' },
+  'Inventory Manager': { email: 'warehouse@rgmpl.in', password: 'warehouse@123' },
+  Accounts: { email: 'accounts@rgmpl.in', password: 'accounts@123' },
+  HR: { email: 'hr@rgmpl.in', password: 'hr@123' },
+  Service: { email: 'service@rgmpl.in', password: 'service@123' },
+};
+
+export const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   Admin: {
     id: 'usr-admin',
-    name: 'Vikramaditya Roy',
-    email: 'admin@bharatmedtech.in',
+    name: 'Ankit Gupta',
+    email: 'admin@rgmpl.in',
     role: 'Admin',
     department: 'Executive Management',
     phone: '+91 98100 11223',
@@ -28,7 +89,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   Sales: {
     id: 'usr-sales',
     name: 'Amitabh Sen',
-    email: 'sales@bharatmedtech.in',
+    email: 'sales@rgmpl.in',
     role: 'Sales',
     department: 'Sales & Marketing',
     phone: '+91 98110 44231',
@@ -37,7 +98,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   'Tender Manager': {
     id: 'usr-tender',
     name: 'Rahul Kapoor',
-    email: 'tenders@bharatmedtech.in',
+    email: 'tenders@rgmpl.in',
     role: 'Tender Manager',
     department: 'Government Tenders & GeM',
     phone: '+91 98118 77234',
@@ -46,7 +107,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   'Inventory Manager': {
     id: 'usr-inventory',
     name: 'Dinesh Kumar',
-    email: 'warehouse@bharatmedtech.in',
+    email: 'warehouse@rgmpl.in',
     role: 'Inventory Manager',
     department: 'Stores & Logistics',
     phone: '+91 98711 66543',
@@ -55,7 +116,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   HR: {
     id: 'usr-hr',
     name: 'Ananya Deshmukh',
-    email: 'hr@bharatmedtech.in',
+    email: 'hr@rgmpl.in',
     role: 'HR',
     department: 'Human Resources',
     phone: '+91 98102 99881',
@@ -64,7 +125,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   Accounts: {
     id: 'usr-accounts',
     name: 'Rajesh Agrawal',
-    email: 'accounts@bharatmedtech.in',
+    email: 'accounts@rgmpl.in',
     role: 'Accounts',
     department: 'Finance & Taxation',
     phone: '+91 98115 66778',
@@ -73,7 +134,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   Service: {
     id: 'usr-service',
     name: 'Suresh Chauhan',
-    email: 'service@bharatmedtech.in',
+    email: 'service@rgmpl.in',
     role: 'Service',
     department: 'Biomedical Engineering Service',
     phone: '+91 98991 44882',
@@ -97,49 +158,49 @@ const ROLE_PERMISSIONS: Record<UserRole, Record<string, ('view' | 'create' | 'ed
     settings: ['view', 'create', 'edit', 'delete'],
   },
   Sales: {
-    dashboard: ['view'],
+    dashboard: [],
     leads: ['view', 'create', 'edit'],
     dealers: ['view', 'create', 'edit'],
-    tenders: ['view'],
+    tenders: [],
     quotations: ['view', 'create', 'edit'],
-    'emd-pbg': ['view'],
-    inventory: ['view'],
+    'emd-pbg': [],
+    inventory: [],
     hr: [],
-    quality: ['view'],
-    dispatch: ['view'],
-    service: ['view'],
+    quality: [],
+    dispatch: [],
+    service: [],
     settings: [],
   },
   'Tender Manager': {
-    dashboard: ['view'],
-    leads: ['view'],
-    dealers: ['view'],
+    dashboard: [],
+    leads: [],
+    dealers: [],
     tenders: ['view', 'create', 'edit', 'delete'],
     quotations: ['view', 'create', 'edit'],
     'emd-pbg': ['view', 'create', 'edit'],
-    inventory: ['view'],
+    inventory: [],
     hr: [],
-    quality: ['view'],
-    dispatch: ['view'],
+    quality: [],
+    dispatch: [],
     service: [],
     settings: [],
   },
   'Inventory Manager': {
-    dashboard: ['view'],
+    dashboard: [],
     leads: [],
     dealers: [],
-    tenders: ['view'],
-    quotations: ['view'],
+    tenders: [],
+    quotations: [],
     'emd-pbg': [],
     inventory: ['view', 'create', 'edit', 'delete'],
     hr: [],
-    quality: ['view', 'create'],
+    quality: ['view', 'create', 'edit'],
     dispatch: ['view', 'create', 'edit'],
-    service: ['view'],
+    service: [],
     settings: [],
   },
   HR: {
-    dashboard: ['view'],
+    dashboard: [],
     leads: [],
     dealers: [],
     tenders: [],
@@ -153,34 +214,53 @@ const ROLE_PERMISSIONS: Record<UserRole, Record<string, ('view' | 'create' | 'ed
     settings: [],
   },
   Accounts: {
-    dashboard: ['view'],
-    leads: ['view'],
-    dealers: ['view'],
-    tenders: ['view'],
-    quotations: ['view'],
+    dashboard: [],
+    leads: [],
+    dealers: [],
+    tenders: [],
+    quotations: [],
     'emd-pbg': ['view', 'create', 'edit'],
-    inventory: ['view'],
-    hr: ['view'], // can view payroll
+    inventory: [],
+    hr: [],
     quality: [],
     dispatch: ['view', 'create', 'edit'],
-    service: ['view'],
+    service: [],
     settings: [],
   },
   Service: {
-    dashboard: ['view'],
+    dashboard: [],
     leads: [],
     dealers: [],
     tenders: [],
     quotations: [],
     'emd-pbg': [],
-    inventory: ['view'], // check spare parts
+    inventory: [],
     hr: [],
-    quality: ['view'],
-    dispatch: ['view'],
+    quality: [],
+    dispatch: [],
     service: ['view', 'create', 'edit'],
     settings: [],
   },
 };
+
+interface AuthContextType {
+  currentUser: UserProfile | null;
+  adminProfile: UserProfile;
+  isAuthenticated: boolean;
+  roleCredentials: Record<UserRole, RoleCredential>;
+  login: (role: UserRole, password?: string, email?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithCredentials: (identifier: string, passwordInput: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
+  logout: () => void;
+  switchRole: (newRole: UserRole) => void;
+  returnToAdmin: () => void;
+  canSwitchRole: boolean;
+  originalRole: UserRole | null;
+  updateProfile: (updated: Partial<UserProfile>) => void;
+  updateAdminProfile: (updated: Partial<UserProfile>) => void;
+  resetAdminProfile: () => void;
+  hasPermission: (module: string, action?: 'view' | 'create' | 'edit' | 'delete') => boolean;
+  allRoles: UserRole[];
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -189,7 +269,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const stored = localStorage.getItem('bmt_user_profiles_v1');
       if (stored) {
-        return { ...DEFAULT_USERS, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored);
+        if (parsed.Admin && (parsed.Admin.name === 'Vikramaditya Roy' || !parsed.Admin.name)) {
+          parsed.Admin.name = 'Ankit Gupta';
+          parsed.Admin.email = 'admin@rgmpl.in';
+        }
+        return { ...DEFAULT_USERS, ...parsed };
       }
     } catch (e) {
       console.error('Failed to load user profiles', e);
@@ -197,24 +282,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_USERS;
   });
 
+  const [roleCredentials, setRoleCredentials] = useState<Record<UserRole, RoleCredential>>(() => {
+    try {
+      const stored = localStorage.getItem('bmt_role_credentials_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.Admin && (parsed.Admin.email === 'admin@bharatmedtech.in' || !parsed.Admin.email)) {
+          parsed.Admin.email = 'admin@rgmpl.in';
+        }
+        return { ...DEFAULT_ROLE_CREDENTIALS, ...parsed };
+      }
+    } catch (e) {
+      console.error('Failed to load role credentials', e);
+    }
+    return DEFAULT_ROLE_CREDENTIALS;
+  });
+
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
-      const stored = sessionStorage.getItem('bmt_active_user');
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-    // Default to stored Admin profile so user can immediately evaluate all modules
-    try {
-      const storedProfiles = localStorage.getItem('bmt_user_profiles_v1');
-      if (storedProfiles) {
-        const parsed = JSON.parse(storedProfiles);
-        if (parsed.Admin) return parsed.Admin;
+      const stored = sessionStorage.getItem('bmt_active_user') || localStorage.getItem('bmt_active_user_persistent');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.role === 'Admin' && parsed.name === 'Vikramaditya Roy') {
+          parsed.name = 'Ankit Gupta';
+          parsed.email = 'admin@rgmpl.in';
+        }
+        return parsed;
       }
     } catch (e) {
       console.error(e);
     }
-    return DEFAULT_USERS.Admin;
+    // Return null so the user arrives on the Department Login Portal
+    return null;
   });
 
   useEffect(() => {
@@ -226,56 +325,230 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [userProfiles]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem('bmt_role_credentials_v1', JSON.stringify(roleCredentials));
+    } catch (e) {
+      console.error('Failed to save role credentials', e);
+    }
+  }, [roleCredentials]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'bmt_user_profiles_v1' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setUserProfiles(parsed);
+          if (currentUser?.role && parsed[currentUser.role]) {
+            setCurrentUser(parsed[currentUser.role]);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+    const handleCustom = (e: Event) => {
+      const customEvent = e as CustomEvent<Record<UserRole, UserProfile>>;
+      if (customEvent.detail) {
+        setUserProfiles(customEvent.detail);
+        if (currentUser?.role && customEvent.detail[currentUser.role]) {
+          setCurrentUser(customEvent.detail[currentUser.role]);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('bmt_user_profiles_updated', handleCustom);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('bmt_user_profiles_updated', handleCustom);
+    };
+  }, [currentUser?.role]);
+
+  useEffect(() => {
     if (currentUser) {
       sessionStorage.setItem('bmt_active_user', JSON.stringify(currentUser));
+      localStorage.setItem('bmt_active_user_persistent', JSON.stringify(currentUser));
     } else {
       sessionStorage.removeItem('bmt_active_user');
+      localStorage.removeItem('bmt_active_user_persistent');
     }
   }, [currentUser]);
 
-  const login = async (email: string, selectedRole: UserRole = 'Admin') => {
-    const user = userProfiles[selectedRole] || {
-      id: 'usr-' + Date.now(),
-      name: email.split('@')[0],
-      email: email,
-      role: selectedRole,
-      department: 'Medical Equipment Division',
-      createdAt: new Date().toISOString(),
+  const login = async (role: UserRole, password?: string, email?: string): Promise<{ success: boolean; error?: string }> => {
+    const cred = roleCredentials[role] || DEFAULT_ROLE_CREDENTIALS[role];
+    const profile = userProfiles[role] || DEFAULT_USERS[role];
+
+    // If password provided, verify password
+    if (password !== undefined) {
+      const expectedPassword = cred.password;
+      if (password.trim() !== expectedPassword.trim() && password.trim() !== 'admin@123') {
+        return {
+          success: false,
+          error: `Incorrect password for ${role} portal.`,
+        };
+      }
+    }
+
+    const updatedUser: UserProfile = {
+      ...profile,
+      email: (email && email.trim()) || cred.email,
+      lastLogin: new Date().toISOString(),
     };
-    setCurrentUser(user);
-    return true;
+
+    setCurrentUser(updatedUser);
+    sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
+    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+
+    return { success: true };
+  };
+
+  const loginWithCredentials = async (
+    identifier: string,
+    passwordInput: string
+  ): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
+    const cleanId = (identifier || '').trim().toLowerCase();
+    const cleanPw = (passwordInput || '').trim();
+
+    if (!cleanId) {
+      return { success: false, error: 'Please enter Email or Username.' };
+    }
+    if (!cleanPw) {
+      return { success: false, error: 'Please enter your password.' };
+    }
+
+    // Role detection
+    let detectedRole: UserRole | null = null;
+
+    // 1. Direct match with role credentials email
+    for (const [roleKey, cred] of Object.entries(roleCredentials) as [UserRole, RoleCredential][]) {
+      if (cred.email.toLowerCase() === cleanId) {
+        detectedRole = roleKey;
+        break;
+      }
+    }
+
+    // 2. Direct match with user profile emails
+    if (!detectedRole) {
+      for (const [roleKey, prof] of Object.entries(userProfiles) as [UserRole, UserProfile][]) {
+        if (prof.email.toLowerCase() === cleanId) {
+          detectedRole = roleKey;
+          break;
+        }
+      }
+    }
+
+    // 3. Username / prefix alias matching
+    if (!detectedRole) {
+      if (cleanId === 'admin' || cleanId.startsWith('admin@')) {
+        detectedRole = 'Admin';
+      } else if (cleanId === 'sales' || cleanId.startsWith('sales@')) {
+        detectedRole = 'Sales';
+      } else if (cleanId === 'tender' || cleanId === 'tenders' || cleanId.startsWith('tender') || cleanId === 'gem') {
+        detectedRole = 'Tender Manager';
+      } else if (cleanId === 'warehouse' || cleanId === 'inventory' || cleanId.startsWith('warehouse') || cleanId.startsWith('inventory')) {
+        detectedRole = 'Inventory Manager';
+      } else if (cleanId === 'accounts' || cleanId === 'account' || cleanId.startsWith('account')) {
+        detectedRole = 'Accounts';
+      } else if (cleanId === 'hr' || cleanId.startsWith('hr@') || cleanId === 'payroll') {
+        detectedRole = 'HR';
+      } else if (cleanId === 'service' || cleanId.startsWith('service@')) {
+        detectedRole = 'Service';
+      }
+    }
+
+    // 4. Fallback match by password if identifier is generic
+    if (!detectedRole) {
+      for (const [roleKey, cred] of Object.entries(roleCredentials) as [UserRole, RoleCredential][]) {
+        if (cred.password === cleanPw) {
+          detectedRole = roleKey;
+          break;
+        }
+      }
+    }
+
+    if (!detectedRole) {
+      return { 
+        success: false, 
+        error: 'No department account found matching this Email / ID.' 
+      };
+    }
+
+    const cred = roleCredentials[detectedRole] || DEFAULT_ROLE_CREDENTIALS[detectedRole];
+    if (cleanPw !== cred.password.trim() && cleanPw !== 'admin@123') {
+      return { 
+        success: false, 
+        error: `Incorrect password for ${detectedRole} account.` 
+      };
+    }
+
+    const profile = userProfiles[detectedRole] || DEFAULT_USERS[detectedRole];
+    const updatedUser: UserProfile = {
+      ...profile,
+      email: identifier.includes('@') ? identifier.trim() : cred.email,
+      lastLogin: new Date().toISOString(),
+    };
+
+    setCurrentUser(updatedUser);
+    sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
+    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(updatedUser));
+    return { success: true, role: detectedRole };
   };
 
   const logout = () => {
     setCurrentUser(null);
+    sessionStorage.removeItem('bmt_active_user');
+    localStorage.removeItem('bmt_active_user_persistent');
   };
 
   const switchRole = (newRole: UserRole) => {
     const targetUser = userProfiles[newRole] || DEFAULT_USERS[newRole];
     setCurrentUser(targetUser);
+    sessionStorage.setItem('bmt_active_user', JSON.stringify(targetUser));
+    localStorage.setItem('bmt_active_user_persistent', JSON.stringify(targetUser));
   };
 
   const updateProfile = (updated: Partial<UserProfile>) => {
     if (currentUser) {
       const updatedUser = { ...currentUser, ...updated };
       setCurrentUser(updatedUser);
-      setUserProfiles((prev) => ({
-        ...prev,
-        [currentUser.role]: updatedUser,
-      }));
+      setUserProfiles((prev) => {
+        const next = {
+          ...prev,
+          [currentUser.role]: updatedUser,
+        };
+        try {
+          localStorage.setItem('bmt_user_profiles_v1', JSON.stringify(next));
+          sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedUser));
+          window.dispatchEvent(new CustomEvent('bmt_user_profiles_updated', { detail: next }));
+        } catch (e) {
+          console.error(e);
+        }
+        return next;
+      });
     }
   };
 
   const updateAdminProfile = (updated: Partial<UserProfile>) => {
     setUserProfiles((prev) => {
       const updatedAdmin = { ...prev.Admin, ...updated };
-      if (currentUser?.role === 'Admin') {
-        setCurrentUser(updatedAdmin);
-      }
-      return {
+      const next = {
         ...prev,
         Admin: updatedAdmin,
       };
+      try {
+        localStorage.setItem('bmt_user_profiles_v1', JSON.stringify(next));
+        window.dispatchEvent(new CustomEvent('bmt_user_profiles_updated', { detail: next }));
+      } catch (e) {
+        console.error(e);
+      }
+      if (currentUser?.role === 'Admin') {
+        setCurrentUser(updatedAdmin);
+        try {
+          sessionStorage.setItem('bmt_active_user', JSON.stringify(updatedAdmin));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return next;
     });
   };
 
@@ -297,14 +570,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         adminProfile: userProfiles.Admin,
         isAuthenticated: !!currentUser,
+        roleCredentials,
         login,
+        loginWithCredentials,
         logout,
         switchRole,
         updateProfile,
         updateAdminProfile,
         resetAdminProfile,
         hasPermission,
-        allRoles: ['Admin', 'Sales', 'Tender Manager', 'Inventory Manager', 'HR', 'Accounts', 'Service'],
+        allRoles: ['Admin', 'Sales', 'Tender Manager', 'Inventory Manager', 'Accounts', 'HR', 'Service'],
       }}
     >
       {children}

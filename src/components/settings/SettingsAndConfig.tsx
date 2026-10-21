@@ -35,7 +35,7 @@ import {
 import { exportFullDatabase, importFullDatabase, resetDatabaseToSeed } from '../../services/db';
 import { FirebaseConnectionConfig } from '../../types/crm';
 import { useAuth } from '../../context/AuthContext';
-import { useSystem, SystemConfig } from '../../context/SystemContext';
+import { useSystem, SystemConfig, DEFAULT_SYSTEM_CONFIG } from '../../context/SystemContext';
 
 function generateMonogramSuggestions(name: string, company: string): string[] {
   const suggestions = new Set<string>();
@@ -135,10 +135,10 @@ export const SettingsAndConfig: React.FC = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Handle System Name Input Change with Smart Monogram Generation
+  // Handle System Name Input Change with Smart Monogram Generation and Company Name Auto-Sync
   const handleSystemNameChange = (newName: string) => {
     setSysForm(prev => {
-      // Only auto-generate monogram if monogram is empty or default 'BM'
+      // Auto-generate monogram if monogram is empty or default 'BM'
       const isDefaultOrEmpty = !prev.systemShortName || prev.systemShortName === 'BM';
       let nextShort = prev.systemShortName;
       if (isDefaultOrEmpty && newName.trim().length > 0) {
@@ -147,10 +147,24 @@ export const SettingsAndConfig: React.FC = () => {
           ? (words[0][0] + words[1][0]).toUpperCase() 
           : newName.trim().slice(0, 4).toUpperCase();
       }
+
+      // Automatically sync companyName if it was default or linked to previous systemName
+      let nextCompanyName = prev.companyName;
+      if (
+        !prev.companyName || 
+        prev.companyName === DEFAULT_SYSTEM_CONFIG.companyName || 
+        prev.companyName.includes('Bharat MedTech') ||
+        prev.companyName === `${prev.systemName} Instruments Ltd.` ||
+        prev.companyName === `${prev.systemName} Ltd.`
+      ) {
+        nextCompanyName = newName.trim() ? `${newName.trim()} Instruments Ltd.` : '';
+      }
+
       return {
         ...prev,
         systemName: newName,
         systemShortName: nextShort,
+        companyName: nextCompanyName,
       };
     });
   };
@@ -162,12 +176,14 @@ export const SettingsAndConfig: React.FC = () => {
     }
     const cleanSysName = (sysForm.systemName || '').trim();
     if (!cleanSysName) {
-      alert('Please enter a valid System / Application Name (કૃપા કરીને સિસ્ટમનું નામ દાખલ કરો).');
+      alert('Please enter a valid System / Application Name.');
       return;
     }
-
     const finalShort = ((sysForm.systemShortName || '').trim() || cleanSysName.slice(0, 3)).toUpperCase();
-    const cleanCompanyName = (sysForm.companyName || '').trim() || `${cleanSysName} Instruments Ltd.`;
+    let cleanCompanyName = (sysForm.companyName || '').trim();
+    if (!cleanCompanyName || cleanCompanyName === DEFAULT_SYSTEM_CONFIG.companyName || cleanCompanyName.includes('Bharat MedTech')) {
+      cleanCompanyName = `${cleanSysName} Instruments Ltd.`;
+    }
 
     const finalForm: SystemConfig = {
       ...sysForm,
@@ -179,7 +195,7 @@ export const SettingsAndConfig: React.FC = () => {
 
     updateSystemConfig(finalForm);
     setIsSysSaved(true);
-    setSysSavedMsg(`✓ System Name & Branding successfully updated to "${finalForm.systemName}"! (સિસ્ટમનું નામ સેવ થઈ ગયું)`);
+    setSysSavedMsg(`✓ System Name & Branding successfully updated to "${finalForm.systemName}"!`);
     triggerToast(
       'System Branding Saved!', 
       `"${finalForm.systemName}" (${finalForm.systemShortName}) is active across all 12 modules.`,
@@ -198,8 +214,8 @@ export const SettingsAndConfig: React.FC = () => {
     if (confirm('Reset system name and company branding back to default values?')) {
       resetSystemConfig();
       setIsSysSaved(true);
-      setSysSavedMsg('System configuration reset to Bharat MedTech defaults!');
-      triggerToast('Reset to Defaults', 'System name reset to Bharat MedTech.');
+      setSysSavedMsg('System configuration reset to RGMPL defaults!');
+      triggerToast('Reset to Defaults', 'System name reset to RGMPL.');
       setTimeout(() => {
         setIsSysSaved(false);
         setSysSavedMsg('');
@@ -214,10 +230,9 @@ export const SettingsAndConfig: React.FC = () => {
     }
     const cleanAdminName = (adminForm.name || '').trim();
     if (!cleanAdminName) {
-      alert('Please enter an Admin Name (કૃપા કરીને એડમિનનું નામ દાખલ કરો).');
+      alert('Please enter an Admin Name.');
       return;
     }
-
     const updated = {
       name: cleanAdminName,
       phone: (adminForm.phone || '').trim(),
@@ -225,7 +240,7 @@ export const SettingsAndConfig: React.FC = () => {
     };
     updateAdminProfile(updated);
     setIsAdminSaved(true);
-    setAdminSavedMsg(`✓ Admin profile successfully updated to "${updated.name}"! (એડમિન નામ સફળતાપૂર્વક અપડેટ થયું)`);
+    setAdminSavedMsg(`✓ Admin profile successfully updated to "${updated.name}"!`);
     triggerToast('Admin Profile Saved!', `Administrator name changed to "${updated.name}".`);
 
     setTimeout(() => {
@@ -279,7 +294,10 @@ export const SettingsAndConfig: React.FC = () => {
   };
 
   const handleExportBackup = async () => {
-    const json = await exportFullDatabase();
+    const json = await exportFullDatabase({
+      systemName: systemConfig.systemName,
+      companyName: systemConfig.companyName,
+    });
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -482,7 +500,7 @@ export const SettingsAndConfig: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    System / Application Name (સિસ્ટમનું નામ) *
+                    System / Application Name *
                   </label>
                   <input
                     type="text"
@@ -556,7 +574,7 @@ export const SettingsAndConfig: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Legal Registered Entity Name (કંપનીનું કાનૂની નામ)
+                      Legal Registered Entity Name
                     </label>
                     <input
                       type="text"
@@ -692,7 +710,7 @@ export const SettingsAndConfig: React.FC = () => {
                   {isSysSaved && (
                     <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 animate-in fade-in">
                       <Check className="h-4 w-4 text-emerald-600" />
-                      <span>Saved Successfully! (સેવ થઈ ગયું)</span>
+                      <span>Saved Successfully!</span>
                     </div>
                   )}
 
@@ -708,7 +726,7 @@ export const SettingsAndConfig: React.FC = () => {
                     {isSysSaved ? (
                       <>
                         <Check className="h-4 w-4" />
-                        <span>✓ Saved Successfully! (સેવ થઈ ગયું)</span>
+                        <span>✓ Saved Successfully!</span>
                       </>
                     ) : (
                       <>
@@ -770,7 +788,7 @@ export const SettingsAndConfig: React.FC = () => {
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    Edit Admin Name & Profile Details (એડમિનનું નામ બદલો)
+                    Edit Admin Name & Profile Details
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Update the official administrator display name, phone, and department. Changes persist permanently across sessions.
@@ -785,7 +803,7 @@ export const SettingsAndConfig: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Admin Full Name (એડમિનનું પૂરું નામ) *
+                  Admin Full Name *
                 </label>
                 <input
                   type="text"
@@ -815,10 +833,9 @@ export const SettingsAndConfig: React.FC = () => {
                     System login identifier for Admin role.
                   </p>
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Phone / Mobile Number (મોબાઇલ નંબર)
+                    Phone / Mobile Number
                   </label>
                   <input
                     type="text"
@@ -852,12 +869,11 @@ export const SettingsAndConfig: React.FC = () => {
                   <RotateCcw className="h-3.5 w-3.5" />
                   Reset Admin Name to Default
                 </button>
-
                 <div className="flex items-center gap-3">
                   {isAdminSaved && (
                     <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 animate-in fade-in">
                       <Check className="h-4 w-4 text-emerald-600" />
-                      <span>Saved Successfully! (સેવ થઈ ગયું)</span>
+                      <span>Saved Successfully!</span>
                     </div>
                   )}
 
@@ -873,7 +889,7 @@ export const SettingsAndConfig: React.FC = () => {
                     {isAdminSaved ? (
                       <>
                         <Check className="h-4 w-4" />
-                        <span>✓ Saved Successfully! (એડમિન નામ સેવ થઈ ગયું)</span>
+                        <span>✓ Saved Successfully!</span>
                       </>
                     ) : (
                       <>

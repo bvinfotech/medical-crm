@@ -30,9 +30,17 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTab }) => {
-  const { currentUser, adminProfile, switchRole, logout, allRoles, updateProfile, updateAdminProfile } = useAuth();
+  const { currentUser, adminProfile, switchRole, logout, allRoles, updateProfile, updateAdminProfile, hasPermission } = useAuth();
   const { systemConfig, updateSystemConfig } = useSystem();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+
+  // Strictly filter notifications so employees only see alerts for their permitted modules
+  const visibleNotifications = notifications.filter((item) => {
+    if (currentUser?.role === 'Admin') return true;
+    if (!item.linkModule) return true;
+    return hasPermission(item.linkModule, 'view');
+  });
+  const visibleUnreadCount = visibleNotifications.filter((n) => !n.read).length;
 
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -49,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
 
   // System modal states
   const [sysName, setSysName] = useState(systemConfig.systemName);
+  const [sysCompanyName, setSysCompanyName] = useState(systemConfig.companyName);
   const [sysShortName, setSysShortName] = useState(systemConfig.systemShortName);
   const [sysTagline, setSysTagline] = useState(systemConfig.systemTagline);
   const [sysPlant, setSysPlant] = useState(systemConfig.plantLocation);
@@ -76,6 +85,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
 
   useEffect(() => {
     setSysName(systemConfig.systemName);
+    setSysCompanyName(systemConfig.companyName);
     setSysShortName(systemConfig.systemShortName);
     setSysTagline(systemConfig.systemTagline);
     setSysPlant(systemConfig.plantLocation);
@@ -98,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
     e.preventDefault();
     const trimmedName = profileName.trim();
     if (!trimmedName) {
-      alert('Please enter a valid Name (કૃપા કરીને નામ દાખલ કરો).');
+      alert('Please enter a valid Name.');
       return;
     }
     if (currentUser?.role === 'Admin') {
@@ -106,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
     } else {
       updateProfile({ name: trimmedName, phone: profilePhone.trim() });
     }
-    setProfileSavedMsg('✓ Name updated successfully! (નામ સેવ થઈ ગયું)');
+    setProfileSavedMsg('✓ Name updated successfully!');
     setTimeout(() => {
       setProfileSavedMsg('');
       setShowProfileModal(false);
@@ -117,18 +127,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
     e.preventDefault();
     const cleanSysName = sysName.trim();
     if (!cleanSysName) {
-      alert('Please enter a valid System Name (કૃપા કરીને સિસ્ટમનું નામ દાખલ કરો).');
+      alert('Please enter a valid System Name.');
       return;
     }
     const finalShort = (sysShortName.trim() || cleanSysName.slice(0, 3)).toUpperCase();
+    let cleanCompany = sysCompanyName.trim();
+    if (!cleanCompany || cleanCompany.includes('Bharat MedTech')) {
+      cleanCompany = `${cleanSysName} Instruments Ltd.`;
+    }
     updateSystemConfig({
       systemName: cleanSysName,
       systemShortName: finalShort,
+      companyName: cleanCompany,
       systemTagline: sysTagline.trim(),
       plantLocation: sysPlant.trim(),
     });
     setIsHeaderSysSaved(true);
-    setSysSavedMsg(`✓ System Name updated to "${cleanSysName}"! (સિસ્ટમનું નામ સેવ થઈ ગયું)`);
+    setSysSavedMsg(`✓ System Name & Company updated to "${cleanSysName}"!`);
     setTimeout(() => {
       setIsHeaderSysSaved(false);
       setSysSavedMsg('');
@@ -189,69 +204,95 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
 
         {/* Right Side: Quick Edit System Name, Role Selector, DB Status, Notifications, User */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Edit System & Admin shortcut button */}
-          <button
-            type="button"
-            onClick={() => {
-              setModalTab('system');
-              setShowProfileModal(true);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition shadow-2xs cursor-pointer"
-            title="Edit System Name & Branding (સિસ્ટમનું નામ બદલો)"
-          >
-            <Building2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-            <span className="hidden sm:inline font-bold text-slate-800 truncate max-w-[130px]">{systemConfig.systemName}</span>
-            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">Edit Name</span>
-          </button>
-
-          {/* Quick Role Switcher */}
-          <div className="relative" ref={roleRef}>
+          {/* Quick Edit System & Admin shortcut button - only editable by Admin */}
+          {currentUser?.role === 'Admin' ? (
             <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition shadow-2xs cursor-pointer"
-              title="Switch role to test different RBAC permissions"
+              type="button"
+              onClick={() => {
+                setModalTab('system');
+                setShowProfileModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition shadow-2xs cursor-pointer"
+              title="Edit System Name & Branding"
+            >
+              <Building2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span className="font-bold text-slate-800 truncate max-w-[90px] sm:max-w-[150px]">{systemConfig.systemName}</span>
+              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded hidden xs:inline">Edit</span>
+            </button>
+          ) : (
+            <div
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs"
+              title={systemConfig.companyName}
+            >
+              <Building2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span className="font-bold text-slate-800 truncate max-w-[90px] sm:max-w-[150px]">{systemConfig.systemName}</span>
+            </div>
+          )}
+
+          {/* Role Display / Switcher - Only Admin can test switch roles */}
+          {currentUser?.role === 'Admin' ? (
+            <div className="relative" ref={roleRef}>
+              <button
+                onClick={() => setShowRoleMenu(!showRoleMenu)}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition shadow-2xs cursor-pointer"
+                title="Switch role to test different RBAC permissions"
+              >
+                <span className="text-slate-400 font-normal hidden md:inline">Role:</span>
+                <span className="font-bold text-blue-700">{currentUser?.role}</span>
+                <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] text-blue-800 font-semibold">
+                  Switch
+                </span>
+              </button>
+
+              {showRoleMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                    Test Role-Based Access (RBAC)
+                  </div>
+                  {allRoles.map((role) => {
+                    const isSelected = currentUser?.role === role;
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          switchRole(role);
+                          setShowRoleMenu(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50 text-blue-700 font-bold'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{role}</span>
+                        {isSelected && <Check className="h-3.5 w-3.5 text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div 
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs"
+              title={`Logged in as ${currentUser?.role} department`}
             >
               <span className="text-slate-400 font-normal hidden md:inline">Role:</span>
               <span className="font-bold text-blue-700">{currentUser?.role}</span>
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] text-blue-800 font-semibold">
-                Switch
-              </span>
-            </button>
-
-            {showRoleMenu && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                  Test Role-Based Access (RBAC)
-                </div>
-                {allRoles.map((role) => {
-                  const isSelected = currentUser?.role === role;
-                  return (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        switchRole(role);
-                        setShowRoleMenu(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition cursor-pointer ${
-                        isSelected
-                          ? 'bg-blue-50 text-blue-700 font-bold'
-                          : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>{role}</span>
-                      {isSelected && <Check className="h-3.5 w-3.5 text-blue-600" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Cloud Database Indicator */}
           <div 
-            onClick={() => setActiveTab('settings')}
-            className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-100 transition"
-            title={hasFirebase ? 'Cloud Firestore connected' : 'Transactional IndexedDB active (Click to manage)'}
+            onClick={() => {
+              if (currentUser?.role === 'Admin') {
+                setActiveTab('settings');
+              }
+            }}
+            className={`hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 ${
+              currentUser?.role === 'Admin' ? 'cursor-pointer hover:bg-slate-100 transition' : 'cursor-default'
+            }`}
+            title={hasFirebase ? 'Cloud Firestore connected' : 'Transactional IndexedDB active'}
           >
             <Database className={`h-3.5 w-3.5 ${hasFirebase ? 'text-blue-600 animate-pulse' : 'text-emerald-600'}`} />
             <span className="text-[11px] font-semibold text-slate-700">
@@ -267,9 +308,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
               aria-label="View notifications"
             >
               <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
+              {visibleUnreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-xs">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {visibleUnreadCount > 9 ? '9+' : visibleUnreadCount}
                 </span>
               )}
             </button>
@@ -278,14 +319,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
               <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/60">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">System Alerts</span>
-                    {unreadCount > 0 && (
+                    <span className="text-xs font-bold text-slate-900">Department Alerts</span>
+                    {visibleUnreadCount > 0 && (
                       <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                        {unreadCount} new
+                        {visibleUnreadCount} new
                       </span>
                     )}
                   </div>
-                  {unreadCount > 0 && (
+                  {visibleUnreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
                       className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
@@ -296,12 +337,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                 </div>
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.length === 0 ? (
+                  {visibleNotifications.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-500">
-                      No notifications yet.
+                      No notifications for your department yet.
                     </div>
                   ) : (
-                    notifications.map((item) => (
+                    visibleNotifications.map((item) => (
                       <div
                         key={item.id}
                         className={`p-3.5 transition hover:bg-slate-50 cursor-pointer ${
@@ -310,6 +351,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                         onClick={() => {
                           markAsRead(item.id);
                           if (item.linkModule) {
+                            if (item.linkModule === 'dashboard' && currentUser?.role !== 'Admin') {
+                              setShowNotifMenu(false);
+                              return;
+                            }
                             setActiveTab(item.linkModule as ActiveTab);
                             setShowNotifMenu(false);
                           }
@@ -358,6 +403,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                 <p className="text-[10px] text-slate-500">{currentUser?.role}</p>
               </div>
             </button>
+
+            {/* Log Out Button */}
+            <button
+              type="button"
+              onClick={logout}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 sm:px-2.5 py-1.5 text-xs font-bold transition shadow-2xs cursor-pointer ml-1"
+              title="Log Out from this session"
+            >
+              <LogOut className="h-3.5 w-3.5 text-rose-600" />
+              <span className="hidden sm:inline">Log Out</span>
+            </button>
           </div>
         </div>
       </header>
@@ -383,21 +439,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
               }`}
             >
               <User className="h-4 w-4" />
-              <span>👤 Admin / User Profile (એડમિનનું નામ)</span>
+              <span>👤 Admin & User Profile</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setModalTab('system')}
-              className={`flex items-center gap-2 pb-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
-                modalTab === 'system'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Building2 className="h-4 w-4" />
-              <span>🏢 System Name & Branding (સિસ્ટમનું નામ)</span>
-            </button>
+            {currentUser?.role === 'Admin' && (
+              <button
+                type="button"
+                onClick={() => setModalTab('system')}
+                className={`flex items-center gap-2 pb-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
+                  modalTab === 'system'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Building2 className="h-4 w-4" />
+                <span>🏢 System Name & Branding</span>
+              </button>
+            )}
           </div>
 
           {/* TAB 1: USER / ADMIN PROFILE */}
@@ -412,13 +470,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Full Name (એડમિન / વપરાશકર્તાનું પૂરું નામ) *
+                  Full Name *
                 </label>
                 <input
                   type="text"
                   value={profileName}
                   onChange={(e) => setProfileName(e.target.value)}
-                  placeholder="e.g. Bhavik Patel, Vikramaditya Roy"
+                  placeholder="e.g. Ankit Gupta, Bhavik Patel"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-hidden"
                   required
                 />
@@ -437,9 +495,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                     className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-500 cursor-not-allowed"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number (મોબાઇલ નંબર)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
                   <input
                     type="text"
                     value={profilePhone}
@@ -520,7 +577,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    System / Application Name (સિસ્ટમનું નામ) *
+                    System / Application Name *
                   </label>
                   <input
                     type="text"
@@ -531,13 +588,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                       if (sysShortName === 'BM' || !sysShortName) {
                         setSysShortName(val.slice(0, 5).toUpperCase());
                       }
+                      // Auto sync company name if it's default
+                      if (!sysCompanyName || sysCompanyName.includes('Bharat MedTech')) {
+                        setSysCompanyName(val.trim() ? `${val.trim()} Instruments Ltd.` : '');
+                      }
                     }}
-                    placeholder="e.g. RGMPL, Bharat MedTech, Apex Medical ERP"
+                    placeholder="e.g. RGMPL, Apex Medical ERP"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-hidden"
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Logo Initials *
@@ -568,6 +628,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar, setActiveTa
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Legal Company Registered Name (For Billing & Quotations)
+                </label>
+                <input
+                  type="text"
+                  value={sysCompanyName}
+                  onChange={(e) => setSysCompanyName(e.target.value)}
+                  placeholder="e.g. RGMPL Instruments Ltd."
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
+                />
+                <p className="text-[10px] text-slate-400 mt-0.5">Appears on Tax Invoices, Quotations, Payslips, and Print Reports.</p>
               </div>
 
               <div>

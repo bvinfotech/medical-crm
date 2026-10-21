@@ -152,16 +152,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
               {systemConfig.systemName} • Executive Dashboard
             </h2>
+            <span className="text-[11px] font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+              {systemConfig.companyName}
+            </span>
             <button
               onClick={() => setActiveTab('settings')}
               className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-md border border-blue-200 transition cursor-pointer flex items-center gap-1 shadow-2xs"
-              title="Click to edit System Name and Admin Profile (સિસ્ટમનું નામ અને એડમિનનું નામ બદલો)"
+              title="Click to edit System Name and Admin Profile"
             >
               <span>✏️ Edit System & Admin Name</span>
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Welcome back, <span className="font-bold text-slate-800">{currentUser?.name || 'Administrator'}</span> ({currentUser?.role || 'Admin'}) • Real-time KPIs for GeM bids, hospital supply orders, EMD deposits, and assembly stock.
+            Welcome back, <span className="font-bold text-slate-800">{currentUser?.name || 'Administrator'}</span> ({currentUser?.role || 'Admin'}) • {systemConfig.plantLocation} • Real-time KPIs for GeM bids, hospital supply orders, EMD deposits, and assembly stock.
           </p>
         </div>
 
