@@ -23,6 +23,7 @@ import { Modal } from '../common/Modal';
 import { Pagination } from '../common/Pagination';
 import { PrintButton, PrintHeader } from '../common/PrintButton';
 import { formatINR, formatDate, exportToCSV } from '../../utils/formatters';
+import { round2, invoiceBalance, totalReceivables, sumBilled } from '../../utils/finance';
 
 export const DispatchBilling: React.FC = () => {
   const { currentUser, hasPermission } = useAuth();
@@ -57,8 +58,8 @@ export const DispatchBilling: React.FC = () => {
     return () => unsub();
   }, []);
 
-  const totalOutstanding = invoices.reduce((acc, inv) => acc + (inv.balanceDue || 0), 0);
-  const totalBilled = invoices.reduce((acc, inv) => acc + (inv.totalAmount || 0), 0);
+  const totalOutstanding = totalReceivables(invoices);
+  const totalBilled = sumBilled(invoices);
 
   const filteredInvoices = invoices.filter((inv) => {
     return (
@@ -81,11 +82,11 @@ export const DispatchBilling: React.FC = () => {
     const gstRate = Number(formData.get('gstRate') || 12);
     const isInterstate = formData.get('isInterstate') === 'yes';
 
-    const taxAmount = (subtotal * gstRate) / 100;
-    const cgst = isInterstate ? 0 : taxAmount / 2;
-    const sgst = isInterstate ? 0 : taxAmount / 2;
+    const taxAmount = round2((subtotal * gstRate) / 100);
+    const cgst = isInterstate ? 0 : round2(taxAmount / 2);
+    const sgst = isInterstate ? 0 : round2(taxAmount - cgst);
     const igst = isInterstate ? taxAmount : 0;
-    const total = subtotal + taxAmount;
+    const total = round2(subtotal + taxAmount);
 
     const inv: Invoice = {
       id: 'inv-' + Date.now(),
@@ -132,10 +133,13 @@ export const DispatchBilling: React.FC = () => {
     if (!selectedInvoiceForPayment) return;
 
     const formData = new FormData(e.currentTarget);
-    const payment = Number(formData.get('amount') || 0);
+    const outstanding = invoiceBalance(selectedInvoiceForPayment);
+    // Never accept more than what is owed, and ignore zero/negative entries.
+    const payment = Math.min(Math.max(0, Number(formData.get('amount') || 0)), outstanding);
+    if (payment <= 0) return;
 
-    const newAmountPaid = (selectedInvoiceForPayment.amountPaid || 0) + payment;
-    const newBalanceDue = Math.max(0, selectedInvoiceForPayment.totalAmount - newAmountPaid);
+    const newAmountPaid = round2((selectedInvoiceForPayment.amountPaid || 0) + payment);
+    const newBalanceDue = invoiceBalance({ totalAmount: selectedInvoiceForPayment.totalAmount, amountPaid: newAmountPaid });
     const newStatus = newBalanceDue === 0 ? 'Paid' : 'Partially Paid';
 
     const updated: Invoice = {

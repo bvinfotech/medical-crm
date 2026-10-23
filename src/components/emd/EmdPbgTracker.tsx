@@ -23,6 +23,7 @@ import { Modal } from '../common/Modal';
 import { Pagination } from '../common/Pagination';
 import { PrintButton, PrintHeader } from '../common/PrintButton';
 import { formatINR, formatDate, exportToCSV } from '../../utils/formatters';
+import { isEmdLocked, isPbgLive, sumAmount } from '../../utils/finance';
 
 const INSTRUMENT_TYPES: InstrumentType[] = [
   'Bank Guarantee',
@@ -67,13 +68,8 @@ export const EmdPbgTracker: React.FC = () => {
   const now = new Date();
 
   // Metrics
-  const totalEmdAmount = records
-    .filter((r) => r.category === 'EMD' && r.status !== 'Refunded')
-    .reduce((acc, r) => acc + r.amount, 0);
-
-  const totalPbgAmount = records
-    .filter((r) => r.category === 'PBG' && r.status === 'Active')
-    .reduce((acc, r) => acc + r.amount, 0);
+  const totalEmdAmount = sumAmount(records.filter(isEmdLocked));
+  const totalPbgAmount = sumAmount(records.filter(isPbgLive));
 
   const pendingRefunds = records.filter(
     (r) => r.category === 'EMD' && (r.status === 'Refund Requested' || r.status === 'Expiring Soon')

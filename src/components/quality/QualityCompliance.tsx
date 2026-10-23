@@ -11,10 +11,11 @@ import {
   Download, 
   Info,
   Calendar,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { QualityInspection, CalibrationCertificate, ComplianceDocument } from '../../types/crm';
-import { getAllFromStore, putToStore, subscribeToDatabase } from '../../services/db';
+import { getAllFromStore, putToStore, deleteFromStore, subscribeToDatabase } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSystem } from '../../context/SystemContext';
 import { Badge } from '../common/Badge';
@@ -111,6 +112,15 @@ export const QualityCompliance: React.FC = () => {
     });
 
     setIsCalibModalOpen(false);
+  };
+
+  const handleDeleteCalib = async (id: string, num: string) => {
+    if (!confirm(`Are you sure you want to delete calibration certificate ${num}?`)) return;
+    await deleteFromStore('calibrationCerts', id, {
+      user: currentUser?.name || 'Quality Lead',
+      role: currentUser?.role || 'Quality Control',
+      details: `Deleted calibration certificate ${num}`,
+    });
   };
 
   return (
@@ -290,6 +300,7 @@ export const QualityCompliance: React.FC = () => {
                   <th className="px-4 py-3">Calibrated On</th>
                   <th className="px-4 py-3">Valid Until</th>
                   <th className="px-4 py-3">Status</th>
+                  {hasPermission('quality', 'delete') && <th className="px-4 py-3 print:hidden">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -306,6 +317,17 @@ export const QualityCompliance: React.FC = () => {
                         {cal.status}
                       </Badge>
                     </td>
+                    {hasPermission('quality', 'delete') && (
+                      <td className="px-4 py-3 print:hidden">
+                        <button
+                          onClick={() => handleDeleteCalib(cal.id, cal.certificateNumber)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600"
+                          title="Delete Certificate"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

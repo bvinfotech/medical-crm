@@ -23,6 +23,7 @@ import { getAllFromStore, subscribeToDatabase } from '../../services/db';
 import { StatCard } from '../common/StatCard';
 import { Badge } from '../common/Badge';
 import { formatINR, formatDate } from '../../utils/formatters';
+import { round2, isOpenTender, isEmdLocked, isPbgLive, sumAmount, totalReceivables } from '../../utils/finance';
 import { ActiveTab } from '../layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useSystem } from '../../context/SystemContext';
@@ -78,11 +79,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
   // Real calculations
   const totalLeads = leads.length;
   const activeDealers = dealers.filter((d) => d.status === 'Active').length;
-  const totalTenders = tenders.length;
+  const openTenders = tenders.filter(isOpenTender);
+  const totalTenders = openTenders.length;
+  const openPipelineValue = round2(openTenders.reduce((acc, t) => acc + (t.estimatedValue || 0), 0));
 
-  // Upcoming deadlines (within next 14 days)
+  // Upcoming deadlines (within next 14 days, open tenders only)
   const now = new Date();
-  const upcomingTenders = tenders.filter((t) => {
+  const upcomingTenders = openTenders.filter((t) => {
     const deadline = new Date(t.submissionDeadline);
     const diffDays = (deadline.getTime() - now.getTime()) / (1000 * 3600 * 24);
     return diffDays >= 0 && diffDays <= 14;
@@ -92,24 +95,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
   const lostTenders = tenders.filter((t) => t.stage === 'Lost' || t.awardStatus === 'Lost').length;
 
   // Inventory value & low stock
-  const totalInventoryValue = products.reduce((acc, p) => acc + p.quantity * p.purchaseCost, 0);
+  const totalInventoryValue = round2(products.reduce((acc, p) => acc + (p.quantity || 0) * (p.purchaseCost || 0), 0));
   const lowStockProducts = products.filter((p) => p.quantity <= p.minStockLevel);
 
   // EMD & PBG tracking
   const pendingEmdRefunds = emdPbg.filter(
     (e) => e.category === 'EMD' && (e.status === 'Refund Requested' || e.status === 'Expiring Soon')
   );
-  const totalPendingEmdAmount = pendingEmdRefunds.reduce((acc, e) => acc + e.amount, 0);
+  const totalPendingEmdAmount = sumAmount(pendingEmdRefunds);
+  const lockedEmdAmount = sumAmount(emdPbg.filter(isEmdLocked));
+  const livePbgCount = emdPbg.filter(isPbgLive).length;
 
   const upcomingPbgExpiries = emdPbg.filter((e) => {
-    if (e.category !== 'PBG') return false;
+    if (!isPbgLive(e)) return false;
     const exp = new Date(e.expiryDate);
     const diffDays = (exp.getTime() - now.getTime()) / (1000 * 3600 * 24);
     return diffDays >= 0 && diffDays <= 60;
   });
 
   // Outstanding payments
-  const outstandingPayments = invoices.reduce((acc, inv) => acc + (inv.balanceDue || 0), 0);
+  const outstandingPayments = totalReceivables(invoices);
 
   // Lead Conversion rate
   const wonLeads = leads.filter((l) => l.status === 'Won').length;
@@ -188,7 +193,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
       {/* Row 1: Primary Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Active Government Bids"
+          title="Open Government Bids"
           value={totalTenders}
           subtitle={`${upcomingTenders.length} submission due within 14 days`}
           icon={<FileCheck2 className="h-5 w-5" />}
@@ -268,7 +273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
             <div>
               <p className="text-xs text-slate-500 font-medium">PBG Guarantees Active</p>
               <h4 className="text-lg font-bold text-slate-900">
-                {emdPbg.filter((e) => e.category === 'PBG' && e.status === 'Active').length} Active
+                {livePbgCount} Active
               </h4>
             </div>
           </div>
@@ -328,13 +333,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setActiveTab }) 
             <div className="p-2 bg-slate-50 rounded-lg">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Estimated Pipeline Value</span>
               <p className="text-sm font-bold text-slate-900 mt-0.5">
-                {formatINR(tenders.reduce((acc, t) => acc + (t.estimatedValue || 0), 0), true)}
+                {formatINR(openPipelineValue, true)}
               </p>
             </div>
             <div className="p-2 bg-slate-50 rounded-lg">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Locked EMD Capital</span>
               <p className="text-sm font-bold text-amber-700 mt-0.5">
-                {formatINR(tenders.reduce((acc, t) => acc + (t.emdAmount || 0), 0), true)}
+                {formatINR(lockedEmdAmount, true)}
               </p>
             </div>
             <div className="p-2 bg-slate-50 rounded-lg">
